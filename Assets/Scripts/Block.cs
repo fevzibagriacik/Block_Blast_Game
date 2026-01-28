@@ -59,4 +59,20 @@ public class Block : MonoBehaviour
             boardImage.sprite = settings.blockAssetSets[colorIndex].GetSprite(newType);
         }
     }
+
+    public void SetCoordinates(int newX, int newY)
+    {
+        x = newX;
+        y = newY;
+
+        gameObject.name = $"Block {x},{y}";
+
+        if (settings != null)
+        {
+            float screenX = x - (settings.width / 2f) + 0.5f;
+            float screenY = y - (settings.height / 2f) + 0.5f;
+
+            transform.position = new Vector3(screenX, screenY, 0f);
+        }
+    }
 }

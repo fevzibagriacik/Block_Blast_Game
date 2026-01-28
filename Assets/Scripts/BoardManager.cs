@@ -14,13 +14,13 @@ public class BoardManager : MonoBehaviour
 
     public Transform boardHolder;
 
-    public bool isClicked = false;
+    public bool moveExist = false;
 
     private void Start()
     {
         FillBoard();
-
         UpdateAllIcons();
+        DeadlockControl();
     }
 
     private void Update()
@@ -45,6 +45,8 @@ public class BoardManager : MonoBehaviour
                 Block blockScript = go.GetComponent<Block>();
                 blockScript.Init(x, y, settings);
                 grid[x, y] = blockScript;
+
+                blockScript.gameObject.name = $"Block {x},{y}";
             }
         }
     }
@@ -63,7 +65,7 @@ public class BoardManager : MonoBehaviour
         return newBlock;
     }
 
-    public void FindNeighboor(int x, int y, Types.ColorTypes targetColor, List<Block> matchedBlocks)
+    public void FindNeighbor(int x, int y, Types.ColorTypes targetColor, List<Block> matchedBlocks)
     {
         if (x < 0 || x >= settings.width || y < 0 || y >= settings.height) return;
 
@@ -77,10 +79,10 @@ public class BoardManager : MonoBehaviour
 
         matchedBlocks.Add(currentBlock);
 
-        FindNeighboor(x + 1, y, targetColor, matchedBlocks); 
-        FindNeighboor(x - 1, y, targetColor, matchedBlocks); 
-        FindNeighboor(x, y + 1, targetColor, matchedBlocks);
-        FindNeighboor(x, y - 1, targetColor, matchedBlocks);
+        FindNeighbor(x + 1, y, targetColor, matchedBlocks); 
+        FindNeighbor(x - 1, y, targetColor, matchedBlocks); 
+        FindNeighbor(x, y + 1, targetColor, matchedBlocks);
+        FindNeighbor(x, y - 1, targetColor, matchedBlocks);
     }
 
     public void CheckMatches(int x, int y)
@@ -93,7 +95,7 @@ public class BoardManager : MonoBehaviour
 
         List<Block> matchedBlocks = new List<Block>();
 
-        FindNeighboor(x, y, targetColor, matchedBlocks);
+        FindNeighbor(x, y, targetColor, matchedBlocks);
 
         if(matchedBlocks.Count >= 2){
             foreach(Block b in matchedBlocks)
@@ -105,6 +107,7 @@ public class BoardManager : MonoBehaviour
                 ApplyGravity();
                 RefillBoard();
                 UpdateAllIcons();
+                DeadlockControl();
             }
         }
     }
@@ -113,8 +116,6 @@ public class BoardManager : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            isClicked = true;
-
             //Transform the screen mouse position to world point
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
@@ -161,13 +162,7 @@ public class BoardManager : MonoBehaviour
 
                 grid[x, i] = b;
 
-                b.x = x;
-                b.y = i;
-
-                float xPos = x - (settings.width / 2f) + 0.5f;
-                float yPos = i - (settings.height / 2f) + 0.5f;
-
-                b.transform.position = new Vector3(xPos, yPos, 0f);
+                b.SetCoordinates(x, i);
             }
         }
     }
@@ -196,6 +191,8 @@ public class BoardManager : MonoBehaviour
                     newBlock.Init(x, y, settings);
 
                     grid[x, y] = newBlock;
+
+                    newBlock.gameObject.name = $"Block {x},{y}";
                 }
 
             }
@@ -220,7 +217,7 @@ public class BoardManager : MonoBehaviour
 
                 Types.ColorTypes targetColor = currentBlock.color;
 
-                FindNeighboor(x, y, targetColor, matchedBlocks);
+                FindNeighbor(x, y, targetColor, matchedBlocks);
 
                 foreach (Block b in matchedBlocks)
                 {
@@ -229,5 +226,152 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    public bool HasMatches()
+    {
+        for(int x = 0; x < settings.width; x++)
+        {
+            for(int y = 0; y < settings.height; y++)
+            {
+                if(grid[x, y] != null)
+                {
+                    List<Block> matchedBlocks = new List<Block>();
+
+                    FindNeighbor(x, y, grid[x, y].color, matchedBlocks);
+
+                    if (matchedBlocks.Count >= 2)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public void DeadlockControl()
+    {
+        if (HasMatches()) return;
+
+        ShuffleBoard();
+    }
+
+    public void ShuffleBoard()
+    {
+        List<Block> tempList = new List<Block>();
+
+        for(int x = 0; x < settings.width; x++)
+        {
+            for(int y = 0; y < settings.height; y++)
+            {
+                if(grid[x, y] != null)
+                {
+                    tempList.Add(grid[x, y]);
+                }
+            }
+        }
+
+        for(int i = 0; i < tempList.Count; i++)
+        {
+            Block temp = tempList[i];
+            int rndIndex = Random.Range(i, tempList.Count);
+            tempList[i] = tempList[rndIndex];
+            tempList[rndIndex] = temp;
+        }
+
+        int listIndex = 0;
+        for (int x = 0; x < settings.width; x++)
+        {
+            for(int y = 0; y < settings.height; y++)
+            {
+                if(grid[x, y] != null)
+                {
+                    Block b = tempList[listIndex];
+                    grid[x, y] = b;
+                    b.SetCoordinates(x, y);
+                    listIndex++;
+                }
+            }
+        }
+
+        if (!HasMatches())
+        {
+            ForceTeleport();
+        }
+
+        UpdateAllIcons();
+    }
+
+    public void ForceTeleport()
+    {
+        int rndX = Random.Range(1, settings.width-1);
+        int rndY = Random.Range(1, settings.height-1);
+        int rndDim = Random.Range(0, 4);
+
+        Block targetBlock = grid[rndX, rndY];
+        Block neighborBlock;
+
+        switch (rndDim)
+        {
+            case 0:
+                neighborBlock = grid[rndX, rndY + 1];
+                break;
+            case 1:
+                neighborBlock = grid[rndX + 1, rndY];
+                break;
+            case 2:
+                neighborBlock = grid[rndX, rndY - 1];
+                break;
+            case 3:
+                neighborBlock = grid[rndX - 1, rndY];
+                break;
+            default:
+                neighborBlock = grid[rndX, rndY + 1];
+                break;
+        }
+
+        if (targetBlock == null || neighborBlock == null)
+        {
+            ForceTeleport(); 
+            return;
+        }
+
+        Block distantBlock = null;
+
+        for(int x = 0; x < settings.width; x++)
+        {
+            for(int y = 0; y < settings.height; y++)
+            {
+                Block currentBlock = grid[x, y];
+
+                if (currentBlock == null) continue;
+                if (currentBlock == targetBlock) continue;
+                if (currentBlock == neighborBlock) continue;
+                if (currentBlock.color != targetBlock.color) continue;
+
+                distantBlock = currentBlock;
+                break;
+            }
+
+            if (distantBlock != null) break;
+        }
+
+        if (distantBlock != null)
+        {
+            int neighborX = neighborBlock.x;
+            int neighborY = neighborBlock.y;
+
+            int distantX = distantBlock.x;
+            int distantY = distantBlock.y;
+
+            grid[neighborX, neighborY] = distantBlock;
+            grid[distantX, distantY] = neighborBlock;
+
+            distantBlock.SetCoordinates(neighborX, neighborY);
+            neighborBlock.SetCoordinates(distantX, distantY);
+        }
+        else ForceTeleport();
     }
 }

@@ -13,10 +13,14 @@ public class Block : MonoBehaviour
     public int y;
 
     private GameSettings settings;
+    private void Awake()
+    {
+        if (boardImage == null)
+            boardImage = GetComponent<SpriteRenderer>();
+    }
+
     public void Init(int _x, int _y, GameSettings _settings)
     {
-        x = _x;
-        y = _y;
         settings = _settings;
 
         int randomColorIndex = Random.Range(0, _settings.colorNumber);
@@ -26,37 +30,26 @@ public class Block : MonoBehaviour
 
         boardImage.sprite = _settings.blockAssetSets[randomColorIndex].GetSprite(Types.IconTypes.normal);
 
-        gameObject.name = $"Block {x},{y}";
+        SetCoordinates(_x, _y);
     }
 
-    public void updateIcon(int groupNumber)
+    public void UpdateIcon(int groupNumber)
     {
-        Types.IconTypes oldIcon = icon;
         Types.IconTypes newType;
 
         if (groupNumber < settings.conditionA)
-        {
             newType = Types.IconTypes.normal;
-        }
         else if (groupNumber >= settings.conditionA && groupNumber < settings.conditionB)
-        {
             newType = Types.IconTypes.A;
-        }
         else if (groupNumber >= settings.conditionB && groupNumber < settings.conditionC)
-        {
             newType = Types.IconTypes.B;
-        }
         else
-        {
             newType = Types.IconTypes.C;
-        }
 
-        if (oldIcon != newType)
+        if (icon != newType)
         {
             icon = newType;
-
-            int colorIndex = (int)color;
-            boardImage.sprite = settings.blockAssetSets[colorIndex].GetSprite(newType);
+            boardImage.sprite = settings.blockAssetSets[(int)color].GetSprite(newType);
         }
     }
 

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42228b040e4979d47aa77587f437b49c, type: 3}
+  m_Name: LevelSettings
+  m_EditorClassIdentifier: 
+  width: 10
+  height: 10
+  conditionA: 4
+  conditionB: 6
+  conditionC: 8
+  blockAssetSets:
+  - colorName: blue
+    Default: {fileID: 21300000, guid: 7408a8afb197a8544a58785d516e0b40, type: 3}
+    TypeA: {fileID: 21300000, guid: dcdcb9c3378029143a7951932a6833b3, type: 3}
+    TypeB: {fileID: 21300000, guid: ce5fb8bc3f507734895ceb39c41b495c, type: 3}
+    TypeC: {fileID: 21300000, guid: 7105558ab89efb847874fc6dc3c6cb24, type: 3}
+  - colorName: pink
+    Default: {fileID: 21300000, guid: 1485c78f6b5a2b0448b28229bb766e2c, type: 3}
+    TypeA: {fileID: 21300000, guid: c354823e0de1fa149a90e94de10c76bf, type: 3}
+    TypeB: {fileID: 21300000, guid: 8b7f128eff6438f4ba11b5774ac4ce63, type: 3}
+    TypeC: {fileID: 21300000, guid: 1add57b118796a446b952de48be705c9, type: 3}
+  - colorName: green
+    Default: {fileID: 21300000, guid: 1af15e39f0bfb4448b6cd84e3701817e, type: 3}
+    TypeA: {fileID: 21300000, guid: 292f5e9566584c448807403b3ed8c7ef, type: 3}
+    TypeB: {fileID: 21300000, guid: c7786124b864569428f0d58cb8a49a41, type: 3}
+    TypeC: {fileID: 21300000, guid: 02365632be74dff488537398adc1981e, type: 3}
+  - colorName: yellow
+    Default: {fileID: 21300000, guid: 635aa74f9a34cb9439fbde3024797d57, type: 3}
+    TypeA: {fileID: 21300000, guid: 02b9d385acf8f8e4287c1aa61da682f1, type: 3}
+    TypeB: {fileID: 21300000, guid: ec8707e1dbbf81a4dbff0f823595e729, type: 3}
+    TypeC: {fileID: 21300000, guid: 66761a2a160714e4a93a395d5285a425, type: 3}
+  - colorName: purple
+    Default: {fileID: 21300000, guid: 6c2e236b025f6414981c3dd12002940c, type: 3}
+    TypeA: {fileID: 21300000, guid: 676297d515dd886408fc2a8933c4d8c0, type: 3}
+    TypeB: {fileID: 21300000, guid: f6d236de8f970834a8cac6c4aeac8a31, type: 3}
+    TypeC: {fileID: 21300000, guid: 4dbd12fc55f6fa047b920b58c39c22dc, type: 3}
+  - colorName: red
+    Default: {fileID: 21300000, guid: 3ef69338b975fb24caca92968ca62b86, type: 3}
+    TypeA: {fileID: 21300000, guid: 235cbc212269a6e43ae13c43ec60fb5e, type: 3}
+    TypeB: {fileID: 21300000, guid: f259d57ce2f59a6448e07ff21b04b6c5, type: 3}
+    TypeC: {fileID: 21300000, guid: 04b16b3f3e717f24eb8279d4fb1e56b9, type: 3}

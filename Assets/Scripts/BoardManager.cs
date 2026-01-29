@@ -14,11 +14,20 @@ public class BoardManager : MonoBehaviour
 
     public Transform boardHolder;
 
+    private Camera cam;
+    public float cameraOffset = 2f; 
+    public float aspectRatio = 0.625f;
+
     public bool moveExist = false;
 
     private void Start()
     {
-        FillBoard();
+        cam = Camera.main; 
+        grid = new Block[settings.width, settings.height];
+
+        PrepareCamera();
+
+        RefillBoard();
         UpdateAllIcons();
         DeadlockControl();
     }
@@ -26,29 +35,6 @@ public class BoardManager : MonoBehaviour
     private void Update()
     {
         RaycastControl();
-    }
-
-    public void FillBoard()
-    {
-        grid = new Block[settings.width, settings.height];
-
-        for (int x = 0; x < settings.width; x++)
-        {
-            for(int y = 0; y < settings.height; y++)
-            {
-                GameObject go = GetBlock();
-
-                float xPos = x - (settings.width / 2f) + 0.5f;
-                float yPos = y - (settings.height / 2f) + 0.5f;
-                go.transform.position = new Vector3(xPos, yPos, 0f);
-
-                Block blockScript = go.GetComponent<Block>();
-                blockScript.Init(x, y, settings);
-                grid[x, y] = blockScript;
-
-                blockScript.gameObject.name = $"Block {x},{y}";
-            }
-        }
     }
 
     public GameObject GetBlock()
@@ -61,8 +47,7 @@ public class BoardManager : MonoBehaviour
             return block;
         }
 
-        GameObject newBlock = Instantiate(blockPrefab, boardHolder.transform);
-        return newBlock;
+        return Instantiate(blockPrefab, boardHolder);
     }
 
     public void FindNeighbor(int x, int y, Types.ColorTypes targetColor, List<Block> matchedBlocks)
@@ -71,11 +56,7 @@ public class BoardManager : MonoBehaviour
 
         Block currentBlock = grid[x, y];
 
-        if (currentBlock == null) return;
-
-        if (matchedBlocks.Contains(currentBlock)) return;
-
-        if (targetColor != currentBlock.color) return;
+        if (currentBlock == null || matchedBlocks.Contains(currentBlock) || targetColor != currentBlock.color) return;
 
         matchedBlocks.Add(currentBlock);
 
@@ -87,15 +68,11 @@ public class BoardManager : MonoBehaviour
 
     public void CheckMatches(int x, int y)
     {
-        Block startBlock = grid[x, y];
-
-        if (startBlock == null) return;
-
-        Types.ColorTypes targetColor = startBlock.color;
+        if (grid[x, y] == null) return;
 
         List<Block> matchedBlocks = new List<Block>();
 
-        FindNeighbor(x, y, targetColor, matchedBlocks);
+        FindNeighbor(x, y, grid[x,y].color, matchedBlocks);
 
         if(matchedBlocks.Count >= 2){
             foreach(Block b in matchedBlocks)
@@ -103,12 +80,12 @@ public class BoardManager : MonoBehaviour
                 grid[b.x, b.y] = null;
                 b.gameObject.SetActive(false);
                 blockPool.Add(b.gameObject);
-
-                ApplyGravity();
-                RefillBoard();
-                UpdateAllIcons();
-                DeadlockControl();
             }
+
+            ApplyGravity();
+            RefillBoard();
+            UpdateAllIcons();
+            DeadlockControl();
         }
     }
 
@@ -117,7 +94,7 @@ public class BoardManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             //Transform the screen mouse position to world point
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2 mousePos = cam.ScreenToWorldPoint(Input.mousePosition);
 
             //Create a ray at the clicked point
             RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
@@ -128,9 +105,7 @@ public class BoardManager : MonoBehaviour
                 Block clickedBlock = hit.collider.GetComponent<Block>();
 
                 if (clickedBlock != null)
-                {
                     CheckMatches(clickedBlock.x, clickedBlock.y);
-                }
             }
         }
     }
@@ -139,30 +114,21 @@ public class BoardManager : MonoBehaviour
     {
         for(int x = 0; x < settings.width; x++)
         {
-            List<Block> tempList = new List<Block>();
+            int writeIndex = 0;
 
             for (int y = 0; y < settings.height; y++)
             {
-                Block currentBlock = grid[x, y];
-
-                if(currentBlock != null)
+                if (grid[x, y] != null)
                 {
-                    tempList.Add(currentBlock);
+                    if (y != writeIndex)
+                    {
+                        grid[x, writeIndex] = grid[x, y];
+                        grid[x, y] = null;
+                        grid[x, writeIndex].SetCoordinates(x, writeIndex);
+                    }
+
+                    writeIndex++;
                 }
-            }
-
-            for (int y = 0; y < settings.height; y++)
-            {
-                grid[x, y] = null;
-            }
-
-            for(int i = 0; i < tempList.Count; i++)
-            {
-                Block b = tempList[i];
-
-                grid[x, i] = b;
-
-                b.SetCoordinates(x, i);
             }
         }
     }
@@ -173,56 +139,38 @@ public class BoardManager : MonoBehaviour
         {
             for(int y = 0; y < settings.height; y++)
             {
-                Block currentBlock = grid[x, y];
-
-                if (currentBlock != null)
-                {
-                    continue;
-                }
-                else
+                if (grid[x, y] == null)
                 {
                     GameObject go = GetBlock();
-
-                    float xPos = x - (settings.width / 2f) + 0.5f;
-                    float yPos = y - (settings.height / 2f) + 0.5f;
-                    go.transform.position = new Vector3(xPos, yPos, 0f);
-
                     Block newBlock = go.GetComponent<Block>();
+
                     newBlock.Init(x, y, settings);
 
                     grid[x, y] = newBlock;
-
-                    newBlock.gameObject.name = $"Block {x},{y}";
                 }
-
             }
         }
     }
 
     public void UpdateAllIcons()
     {
-        bool[,] visitedBlocks = new bool[settings.width, settings.height];
+        bool[,] visited = new bool[settings.width, settings.height];
 
-        for(int x = 0; x < settings.width; x++)
+        for (int x = 0; x < settings.width; x++)
         {
-            for(int y = 0; y < settings.height; y++)
+            for (int y = 0; y < settings.height; y++)
             {
-                Block currentBlock = grid[x, y];
-
-                if (currentBlock == null) continue;
-
-                if (visitedBlocks[x, y] == true) continue;
-
-                List<Block> matchedBlocks = new List<Block>();
-
-                Types.ColorTypes targetColor = currentBlock.color;
-
-                FindNeighbor(x, y, targetColor, matchedBlocks);
-
-                foreach (Block b in matchedBlocks)
+                if (grid[x, y] != null && !visited[x, y])
                 {
-                    b.updateIcon(matchedBlocks.Count);
-                    visitedBlocks[b.x, b.y] = true;
+                    List<Block> matchedBlocks = new List<Block>();
+
+                    FindNeighbor(x, y, grid[x, y].color, matchedBlocks);
+
+                    foreach (Block b in matchedBlocks)
+                    {
+                        b.UpdateIcon(matchedBlocks.Count);
+                        visited[b.x, b.y] = true;
+                    }
                 }
             }
         }
@@ -230,31 +178,29 @@ public class BoardManager : MonoBehaviour
 
     public bool HasMatches()
     {
-        for(int x = 0; x < settings.width; x++)
+        bool[,] visited = new bool[settings.width, settings.height];
+
+        for (int x = 0; x < settings.width; x++)
         {
             for(int y = 0; y < settings.height; y++)
             {
-                if(grid[x, y] != null)
+                if(grid[x, y] != null && !visited[x, y])
                 {
                     List<Block> matchedBlocks = new List<Block>();
-
                     FindNeighbor(x, y, grid[x, y].color, matchedBlocks);
 
-                    if (matchedBlocks.Count >= 2)
-                    {
-                        return true;
-                    }
+                    if (matchedBlocks.Count >= 2) return true;
+
+                    foreach (var b in matchedBlocks) visited[b.x, b.y] = true;
                 }
             }
         }
-
         return false;
     }
 
     public void DeadlockControl()
     {
         if (HasMatches()) return;
-
         ShuffleBoard();
     }
 
@@ -263,15 +209,9 @@ public class BoardManager : MonoBehaviour
         List<Block> tempList = new List<Block>();
 
         for(int x = 0; x < settings.width; x++)
-        {
             for(int y = 0; y < settings.height; y++)
-            {
                 if(grid[x, y] != null)
-                {
                     tempList.Add(grid[x, y]);
-                }
-            }
-        }
 
         for(int i = 0; i < tempList.Count; i++)
         {
@@ -288,53 +228,59 @@ public class BoardManager : MonoBehaviour
             {
                 if(grid[x, y] != null)
                 {
-                    Block b = tempList[listIndex];
+                    Block b = tempList[listIndex++];
                     grid[x, y] = b;
                     b.SetCoordinates(x, y);
-                    listIndex++;
                 }
             }
         }
 
-        if (!HasMatches())
-        {
-            ForceTeleport();
-        }
+        if(settings.width >= 3 && settings.height >= 3)
+            if (!HasMatches())
+                ForceTeleport();
 
         UpdateAllIcons();
     }
 
-    public void ForceTeleport()
+    public void ForceTeleport(int retryCount = 0)
     {
+        if (settings.width < 3 || settings.height < 3) return;
+
+        if (retryCount >= 50)
+        {
+            ShuffleBoard();
+            return;
+        }
+
         int rndX = Random.Range(1, settings.width-1);
         int rndY = Random.Range(1, settings.height-1);
         int rndDim = Random.Range(0, 4);
 
         Block targetBlock = grid[rndX, rndY];
-        Block neighborBlock;
+
+        int neighborX = rndX;
+        int neighborY = rndY;
 
         switch (rndDim)
         {
-            case 0:
-                neighborBlock = grid[rndX, rndY + 1];
-                break;
-            case 1:
-                neighborBlock = grid[rndX + 1, rndY];
-                break;
-            case 2:
-                neighborBlock = grid[rndX, rndY - 1];
-                break;
-            case 3:
-                neighborBlock = grid[rndX - 1, rndY];
-                break;
-            default:
-                neighborBlock = grid[rndX, rndY + 1];
-                break;
+            case 0: neighborY++; break;
+            case 1: neighborX++; break;
+            case 2: neighborY--; break;
+            case 3: neighborX--; break;
+            default: neighborY++; break;
         }
+
+        if (neighborX < 0 || neighborX >= settings.width || neighborY < 0 || neighborY >= settings.height)
+        {
+            ForceTeleport(retryCount + 1);
+            return;
+        }
+
+        Block neighborBlock = grid[neighborX, neighborY];
 
         if (targetBlock == null || neighborBlock == null)
         {
-            ForceTeleport(); 
+            ForceTeleport(retryCount + 1);
             return;
         }
 
@@ -346,13 +292,11 @@ public class BoardManager : MonoBehaviour
             {
                 Block currentBlock = grid[x, y];
 
-                if (currentBlock == null) continue;
-                if (currentBlock == targetBlock) continue;
-                if (currentBlock == neighborBlock) continue;
-                if (currentBlock.color != targetBlock.color) continue;
-
-                distantBlock = currentBlock;
-                break;
+                if (currentBlock != null && currentBlock != targetBlock && currentBlock != neighborBlock && currentBlock.color == targetBlock.color)
+                {
+                    distantBlock = currentBlock;
+                    break;
+                }
             }
 
             if (distantBlock != null) break;
@@ -360,9 +304,6 @@ public class BoardManager : MonoBehaviour
 
         if (distantBlock != null)
         {
-            int neighborX = neighborBlock.x;
-            int neighborY = neighborBlock.y;
-
             int distantX = distantBlock.x;
             int distantY = distantBlock.y;
 
@@ -372,6 +313,23 @@ public class BoardManager : MonoBehaviour
             distantBlock.SetCoordinates(neighborX, neighborY);
             neighborBlock.SetCoordinates(distantX, distantY);
         }
-        else ForceTeleport();
+        else ForceTeleport(retryCount + 1);
+    }
+
+    public void PrepareCamera()
+    {
+        cam.transform.position = new Vector3(0, 0, -10f);
+
+        float boardHeight = settings.height / 2f;
+        float boardWidth = settings.width / 2f;
+
+        boardHeight += cameraOffset;
+        boardWidth += cameraOffset;
+
+        float screenRatio = (float)Screen.width / (float)Screen.height;
+        float targetRatio = boardWidth / boardHeight;
+
+        if (screenRatio >= targetRatio) cam.orthographicSize = boardHeight;
+        else cam.orthographicSize = boardWidth / screenRatio;
     }
 }

@@ -1,0 +1,22 @@
+---Before The Game---
+*Describe size of the game board. (10x10)
+*Describe number and name of colors. (6; blue,green,pink,purple,red,yellow)
+*Describe four icon types. (default,A,B,C)
+*Describe four conditions for icon type. Icons change according to how many groups.(4<7<10)
+*Create colorful blocks on the game board. If there is a deadlock, organize colorful blocks reply without any deadlock.
+
+---During The Game---
+*The gamer clicks a group. This group must be greater than 2 to be a group. 
+*If any group has not less 2 group, colors must be organizated at the game board without any deadlock.
+*Group is blasted. In this case, there is a blast animation here.
+*New colorful blocks are created and they must shown as up to down.
+
+---Performance Optimization Problems---
+*Deadlock (Solution: Shuffle blocks randomly, select a block, teleport it to block which has same color)
+*New colorful blocks instead of blasted blocks (Solution: Randomly object pooling)
+*Gravity with rigidbody (Solution: Use down movement instead of rigidbody)
+*Many draw calls (Solution: Sprite atlas)
+*Finding same neighboor colorful blocks (Solution: Use a list to find neighboorhoods)
+
+
+

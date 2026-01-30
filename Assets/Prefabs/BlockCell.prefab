@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2156938207142220404}
   - component: {fileID: 6982224362642652355}
   - component: {fileID: -766731091319711894}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BlockCell
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -101,7 +101,6 @@ MonoBehaviour:
   color: 0
   icon: 0
   boardImage: {fileID: 2156938207142220404}
-  iconImage: {fileID: 0}
   x: 0
   y: 0
 --- !u!61 &-766731091319711894

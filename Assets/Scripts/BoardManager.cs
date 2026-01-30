@@ -20,10 +20,28 @@ public class BoardManager : MonoBehaviour
 
     public bool moveExist = false;
 
+    private Stack<int> searchStack;
+    private bool[] visited;
+
+    private readonly List<Block> tempGroup = new List<Block>(16);
+    private readonly List<Block> tempCheck = new List<Block>(8);
+    private readonly List<Block> clickMatch = new List<Block>(16);
+    private readonly List<Block> shuffleList = new List<Block>(100);
+
+    private RaycastHit2D[] rayHits = new RaycastHit2D[1];
+
+    public LayerMask blockLayer;
     private void Start()
     {
         cam = Camera.main; 
         grid = new Block[settings.width, settings.height];
+
+        int size = settings.width * settings.height;
+
+        visited = new bool[size];
+        searchStack = new Stack<int>(size);
+
+        PrewarmPool(100);
 
         PrepareCamera();
 
@@ -50,63 +68,97 @@ public class BoardManager : MonoBehaviour
         return Instantiate(blockPrefab, boardHolder);
     }
 
-    public void FindNeighbor(int x, int y, Types.ColorTypes targetColor, List<Block> matchedBlocks)
+    public void FindNeighbor(int startX, int startY, Types.ColorTypes targetColor, List<Block> result)
     {
-        if (x < 0 || x >= settings.width || y < 0 || y >= settings.height) return;
+        int w = settings.width;
+        int h = settings.height;
 
-        Block currentBlock = grid[x, y];
+        int startIndex = startX + startY * w;
 
-        if (currentBlock == null || matchedBlocks.Contains(currentBlock) || targetColor != currentBlock.color) return;
+        Block startBlock = grid[startX, startY];
+        if (startBlock == null || startBlock.color != targetColor)
+            return;
 
-        matchedBlocks.Add(currentBlock);
+        searchStack.Clear();
 
-        FindNeighbor(x + 1, y, targetColor, matchedBlocks); 
-        FindNeighbor(x - 1, y, targetColor, matchedBlocks); 
-        FindNeighbor(x, y + 1, targetColor, matchedBlocks);
-        FindNeighbor(x, y - 1, targetColor, matchedBlocks);
+        searchStack.Push(startIndex);
+        visited[startIndex] = true;
+
+        while (searchStack.Count > 0)
+        {
+            int index = searchStack.Pop();
+
+            int x = index % w;
+            int y = index / w;
+
+            Block b = grid[x, y];
+            result.Add(b);
+
+            TryPush(x + 1, y, targetColor, w, h);
+            TryPush(x - 1, y, targetColor, w, h);
+            TryPush(x, y + 1, targetColor, w, h);
+            TryPush(x, y - 1, targetColor, w, h);
+        }
     }
+
+
+    private void TryPush(int x, int y, Types.ColorTypes targetColor, int w, int h)
+    {
+        if (x < 0 || x >= w || y < 0 || y >= h)
+            return;
+
+        int index = x + y * w;
+
+        if (visited[index])
+            return;
+
+        Block b = grid[x, y];
+        if (b == null || b.color != targetColor)
+            return;
+
+        visited[index] = true;
+        searchStack.Push(index);
+    }
+
 
     public void CheckMatches(int x, int y)
     {
         if (grid[x, y] == null) return;
 
-        List<Block> matchedBlocks = new List<Block>();
+        clickMatch.Clear();
+        System.Array.Clear(visited, 0, visited.Length); 
+        FindNeighbor(x, y, grid[x, y].color, clickMatch);
 
-        FindNeighbor(x, y, grid[x,y].color, matchedBlocks);
+        if (clickMatch.Count < 2) return;
 
-        if(matchedBlocks.Count >= 2){
-            foreach(Block b in matchedBlocks)
-            {
-                grid[b.x, b.y] = null;
-                b.gameObject.SetActive(false);
-                blockPool.Add(b.gameObject);
-            }
-
-            ApplyGravity();
-            RefillBoard();
-            UpdateAllIcons();
-            DeadlockControl();
+        foreach (Block b in clickMatch)
+        {
+            grid[b.x, b.y] = null;
+            b.gameObject.SetActive(false);
+            blockPool.Add(b.gameObject);
         }
+
+        ApplyGravity();
+        RefillBoard();
+        UpdateAllIcons();
+        DeadlockControl();
     }
 
-    public void RaycastControl()
+    private void RaycastControl()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (!Input.GetMouseButtonDown(0))
+            return;
+
+        Vector2 worldPos = cam.ScreenToWorldPoint(Input.mousePosition);
+
+        int hitCount = Physics2D.RaycastNonAlloc(worldPos, Vector2.zero, rayHits, 0f, blockLayer);
+
+        if (hitCount == 0)
+            return;
+
+        if (rayHits[0].collider.TryGetComponent(out Block b))
         {
-            //Transform the screen mouse position to world point
-            Vector2 mousePos = cam.ScreenToWorldPoint(Input.mousePosition);
-
-            //Create a ray at the clicked point
-            RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
-
-            if (hit.collider != null)
-            {
-                //Access to script of clickedBlock
-                Block clickedBlock = hit.collider.GetComponent<Block>();
-
-                if (clickedBlock != null)
-                    CheckMatches(clickedBlock.x, clickedBlock.y);
-            }
+            CheckMatches(b.x, b.y);
         }
     }
 
@@ -154,49 +206,61 @@ public class BoardManager : MonoBehaviour
 
     public void UpdateAllIcons()
     {
-        bool[,] visited = new bool[settings.width, settings.height];
+        System.Array.Clear(visited, 0, visited.Length);
+
+        int w = settings.width;
 
         for (int x = 0; x < settings.width; x++)
         {
             for (int y = 0; y < settings.height; y++)
             {
-                if (grid[x, y] != null && !visited[x, y])
+                int index = x + y * w;
+
+                if (grid[x, y] == null || visited[index])
+                    continue;
+
+                tempGroup.Clear();
+                FindNeighbor(x, y, grid[x, y].color, tempGroup);
+
+                int count = tempGroup.Count;
+
+                foreach (Block b in tempGroup)
                 {
-                    List<Block> matchedBlocks = new List<Block>();
-
-                    FindNeighbor(x, y, grid[x, y].color, matchedBlocks);
-
-                    foreach (Block b in matchedBlocks)
-                    {
-                        b.UpdateIcon(matchedBlocks.Count);
-                        visited[b.x, b.y] = true;
-                    }
+                    b.UpdateIcon(count);
                 }
             }
         }
     }
+
+
 
     public bool HasMatches()
     {
-        bool[,] visited = new bool[settings.width, settings.height];
+        System.Array.Clear(visited, 0, visited.Length);
+        int w = settings.width;
 
         for (int x = 0; x < settings.width; x++)
         {
-            for(int y = 0; y < settings.height; y++)
+            for (int y = 0; y < settings.height; y++)
             {
-                if(grid[x, y] != null && !visited[x, y])
-                {
-                    List<Block> matchedBlocks = new List<Block>();
-                    FindNeighbor(x, y, grid[x, y].color, matchedBlocks);
+                int index = x + y * w;
 
-                    if (matchedBlocks.Count >= 2) return true;
+                if (grid[x, y] == null || visited[index])
+                    continue;
 
-                    foreach (var b in matchedBlocks) visited[b.x, b.y] = true;
-                }
+                tempCheck.Clear();
+                FindNeighbor(x, y, grid[x, y].color, tempCheck);
+
+                if (tempCheck.Count >= 2)
+                    return true;
             }
         }
+
         return false;
     }
+
+
+
 
     public void DeadlockControl()
     {
@@ -206,19 +270,19 @@ public class BoardManager : MonoBehaviour
 
     public void ShuffleBoard()
     {
-        List<Block> tempList = new List<Block>();
+        shuffleList.Clear();
 
-        for(int x = 0; x < settings.width; x++)
+        for (int x = 0; x < settings.width; x++)
             for(int y = 0; y < settings.height; y++)
                 if(grid[x, y] != null)
-                    tempList.Add(grid[x, y]);
+                    shuffleList.Add(grid[x, y]);
 
-        for(int i = 0; i < tempList.Count; i++)
+        for(int i = 0; i < shuffleList.Count; i++)
         {
-            Block temp = tempList[i];
-            int rndIndex = Random.Range(i, tempList.Count);
-            tempList[i] = tempList[rndIndex];
-            tempList[rndIndex] = temp;
+            Block temp = shuffleList[i];
+            int rndIndex = Random.Range(i, shuffleList.Count);
+            shuffleList[i] = shuffleList[rndIndex];
+            shuffleList[rndIndex] = temp;
         }
 
         int listIndex = 0;
@@ -228,7 +292,7 @@ public class BoardManager : MonoBehaviour
             {
                 if(grid[x, y] != null)
                 {
-                    Block b = tempList[listIndex++];
+                    Block b = shuffleList[listIndex++];
                     grid[x, y] = b;
                     b.SetCoordinates(x, y);
                 }
@@ -331,5 +395,15 @@ public class BoardManager : MonoBehaviour
 
         if (screenRatio >= targetRatio) cam.orthographicSize = boardHeight;
         else cam.orthographicSize = boardWidth / screenRatio;
+    }
+
+    private void PrewarmPool(int amount)
+    {
+        for (int i = 0; i < amount; i++)
+        {
+            GameObject b = Instantiate(blockPrefab, boardHolder);
+            b.SetActive(false);
+            blockPool.Add(b);
+        }
     }
 }
